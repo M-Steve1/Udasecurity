@@ -1,6 +1,7 @@
 package com.udacity.securityservice;
 
 import com.udacity.imageservice.FakeImageService;
+import com.udacity.imageservice.ImageService;
 import com.udacity.securityservice.data.AlarmStatus;
 import com.udacity.securityservice.data.ArmingStatus;
 import com.udacity.securityservice.data.SecurityRepository;
@@ -20,12 +21,12 @@ import java.util.Set;
  */
 public class SecurityService {
 
-    private FakeImageService imageService;
+    private ImageService imageService;
 
     private SecurityRepository securityRepository;
     private Set<StatusListener> statusListeners = new HashSet<>();
 
-    public SecurityService(SecurityRepository securityRepository, FakeImageService imageService) {
+    public SecurityService(SecurityRepository securityRepository, ImageService imageService) {
         this.securityRepository = securityRepository;
         this.imageService = imageService;
     }
@@ -38,6 +39,11 @@ public class SecurityService {
     public void setArmingStatus(ArmingStatus armingStatus) {
         if(armingStatus == ArmingStatus.DISARMED) {
             setAlarmStatus(AlarmStatus.NO_ALARM);
+        } else if (armingStatus == ArmingStatus.ARMED_HOME || armingStatus == ArmingStatus.ARMED_AWAY) {
+            // I added this code
+            setAlarmStatus(AlarmStatus.ALARM);
+
+            securityRepository.getSensors().forEach(s -> s.setActive(false));
         }
         securityRepository.setArmingStatus(armingStatus);
     }
@@ -107,10 +113,17 @@ public class SecurityService {
      * @param active
      */
     public void changeSensorActivationStatus(Sensor sensor, Boolean active) {
-        if(!sensor.getActive() && active) {
-            handleSensorActivated();
-        } else if (sensor.getActive() && !active) {
-            handleSensorDeactivated();
+        // Debug here already
+        AlarmStatus alarmStatus = securityRepository.getAlarmStatus();
+        if (alarmStatus != AlarmStatus.ALARM) {
+            if (!sensor.getActive() && active) {
+                handleSensorActivated();
+            } else if (sensor.getActive() && !active) {
+                handleSensorDeactivated();
+            } else if (sensor.getActive() && active) {
+                // added this line of code
+                handleSensorActivated();
+            }
         }
         sensor.setActive(active);
         securityRepository.updateSensor(sensor);
