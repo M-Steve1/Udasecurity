@@ -3,6 +3,7 @@ module com.udacity.securityservice {
     requires miglayout;
     requires com.udacity.imageservice;
     requires java.prefs;
+    opens com.udacity.securityservice.data;
     requires com.google.gson;
     requires com.google.common;
 }
