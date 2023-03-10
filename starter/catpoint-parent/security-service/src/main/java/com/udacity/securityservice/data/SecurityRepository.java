@@ -11,9 +11,14 @@ public interface SecurityRepository {
     void updateSensor(Sensor sensor);
     void setAlarmStatus(AlarmStatus alarmStatus);
     void setArmingStatus(ArmingStatus armingStatus);
+    // added this
+    void setCatStatus(Boolean catStatus);
     Set<Sensor> getSensors();
     AlarmStatus getAlarmStatus();
     ArmingStatus getArmingStatus();
+    // added this
+    boolean getCatStatus();
+
 
 
 }

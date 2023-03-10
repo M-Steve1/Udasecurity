@@ -1,6 +1,5 @@
 package com.udacity.securityservice;
 
-import com.udacity.imageservice.FakeImageService;
 import com.udacity.imageservice.ImageService;
 import com.udacity.securityservice.data.AlarmStatus;
 import com.udacity.securityservice.data.ArmingStatus;
@@ -39,11 +38,24 @@ public class SecurityService {
     public void setArmingStatus(ArmingStatus armingStatus) {
         if(armingStatus == ArmingStatus.DISARMED) {
             setAlarmStatus(AlarmStatus.NO_ALARM);
-        } else if (armingStatus == ArmingStatus.ARMED_HOME || armingStatus == ArmingStatus.ARMED_AWAY) {
-            // I added this code
-            setAlarmStatus(AlarmStatus.ALARM);
 
-            securityRepository.getSensors().forEach(s -> s.setActive(false));
+            // I added this code
+            getSensors().forEach(s -> s.setActive(true));
+            // I added this code
+            statusListeners.forEach(sl -> {
+                if (sl instanceof SensorPanel) sl.sensorStatusChanged();
+            });
+
+        } else {
+            // I added this code
+            if (getCatStatus()) {
+                setAlarmStatus(AlarmStatus.ALARM);
+            }
+            getSensors().forEach(s -> s.setActive(false));
+            statusListeners.forEach(sl -> {
+                if (sl instanceof SensorPanel) sl.sensorStatusChanged();
+            } );
+
         }
         securityRepository.setArmingStatus(armingStatus);
     }
@@ -54,10 +66,19 @@ public class SecurityService {
      * @param cat True if a cat is detected, otherwise false.
      */
     private void catDetected(Boolean cat) {
-        if(cat && getArmingStatus() == ArmingStatus.ARMED_HOME) {
+        boolean isSensorActive = false;
+        for(Sensor s: getSensors()) {
+            if (s.getActive()) isSensorActive = s.getActive();
+        }
+        if(cat && (getArmingStatus() == ArmingStatus.ARMED_HOME || getArmingStatus() == ArmingStatus.ARMED_AWAY)) {
             setAlarmStatus(AlarmStatus.ALARM);
-        } else {
+            setCatStatus(true);
+        } else if (cat && getArmingStatus() == ArmingStatus.DISARMED) {
             setAlarmStatus(AlarmStatus.NO_ALARM);
+            setCatStatus(true);
+        } else if (!cat && !isSensorActive){
+            setAlarmStatus(AlarmStatus.NO_ALARM);
+            setCatStatus(false);
         }
 
         statusListeners.forEach(sl -> sl.catDetected(cat));
@@ -115,7 +136,8 @@ public class SecurityService {
     public void changeSensorActivationStatus(Sensor sensor, Boolean active) {
         // Debug here already
         AlarmStatus alarmStatus = securityRepository.getAlarmStatus();
-        if (alarmStatus != AlarmStatus.ALARM) {
+        // add when armed_disarm
+        if (getArmingStatus() != ArmingStatus.DISARMED || alarmStatus != AlarmStatus.ALARM) {
             if (!sensor.getActive() && active) {
                 handleSensorActivated();
             } else if (sensor.getActive() && !active) {
@@ -130,7 +152,7 @@ public class SecurityService {
     }
 
     /**
-     * Send an image to the SecurityService for processing. The securityService will use its provided
+     * Send an image to the SecurityService for processing. The securityService will use it's provided
      * ImageService to analyze the image for cats and update the alarm status accordingly.
      * @param currentCameraImage
      */
@@ -138,6 +160,14 @@ public class SecurityService {
         catDetected(imageService.imageContainsCat(currentCameraImage, 50.0f));
     }
 
+    // added this
+    public void setCatStatus(boolean catStatus) {
+        securityRepository.setCatStatus(catStatus);
+    }
+    // added this
+    public boolean getCatStatus() {
+        return securityRepository.getCatStatus();
+    }
     public AlarmStatus getAlarmStatus() {
         return securityRepository.getAlarmStatus();
     }
